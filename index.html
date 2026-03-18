@@ -48,25 +48,35 @@
             };
 
           useEffect(() => {
-                // 1. Initial Load: Get what's already saved
-                loadHooks();
+    // 1. Initial Load from Extension Storage
+    const loadFromExtension = () => {
+        if (typeof chrome !== "undefined" && chrome.storage) {
+            chrome.storage.local.get({ hooks: [] }, (result) => {
+                setHooks(result.hooks);
+            });
+        }
+    };
 
-                // 2. Handshake A: Listen for direct background messages (The Bridge)
-                if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
-                    chrome.runtime.onMessage.addListener((message) => {
-                        if (message.type === "NEW_HOOKS") {
-                            setHooks(message.data);
-                        }
-                    });
-                }
+    loadFromExtension();
 
-                // 3. Handshake B: Listen for storage changes (Back-up)
-                if (typeof chrome !== "undefined" && chrome.storage) {
-                    chrome.storage.onChanged.addListener((changes) => {
-                        if (changes.hooks) setHooks(changes.hooks.newValue);
-                    });
-                }
-            }, []);
+    // 2. The Listener: This catches the "Bridge" message
+    const messageListener = (message) => {
+        if (message.type === "NEW_HOOKS") {
+            setHooks(message.data);
+        }
+    };
+
+    if (typeof chrome !== "undefined" && chrome.runtime) {
+        chrome.runtime.onMessage.addListener(messageListener);
+    }
+
+    // Cleanup listener when page closes
+    return () => {
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+            chrome.runtime.onMessage.removeListener(messageListener);
+        }
+    };
+}, []);
 
             const filteredHooks = hooks.filter(h => 
                 h.brand.toLowerCase().includes(search.toLowerCase()) || 
