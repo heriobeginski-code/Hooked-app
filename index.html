@@ -47,9 +47,20 @@
                 }
             };
 
-            useEffect(() => {
+          useEffect(() => {
+                // 1. Initial Load: Get what's already saved
                 loadHooks();
-                // Handshake: Listen for updates from the background script
+
+                // 2. Handshake A: Listen for direct background messages (The Bridge)
+                if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+                    chrome.runtime.onMessage.addListener((message) => {
+                        if (message.type === "NEW_HOOKS") {
+                            setHooks(message.data);
+                        }
+                    });
+                }
+
+                // 3. Handshake B: Listen for storage changes (Back-up)
                 if (typeof chrome !== "undefined" && chrome.storage) {
                     chrome.storage.onChanged.addListener((changes) => {
                         if (changes.hooks) setHooks(changes.hooks.newValue);
